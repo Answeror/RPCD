@@ -28,6 +28,9 @@ namespace cvcourse
     {
         Q_OBJECT
 
+    private:
+        typedef QLabel base_type;
+
     public:
         cvmatwidget();
 
@@ -37,6 +40,12 @@ namespace cvcourse
         void set_mat(cv::Mat mat);
 
         cv::Mat mat() const;
+
+        /// load by popup dialog
+        bool load();
+
+        /// zoom
+        void wheelEvent(QWheelEvent *e) override;
     };
 }
 

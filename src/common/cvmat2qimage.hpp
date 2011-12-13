@@ -26,6 +26,7 @@ namespace cvcourse
             reinterpret_cast<const unsigned char*>(mat.data),
             mat.cols,
             mat.rows,
+            mat.step,
             QImage::Format_RGB888
             );
     }

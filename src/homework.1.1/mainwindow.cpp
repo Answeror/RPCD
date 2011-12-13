@@ -64,9 +64,9 @@ struct ans::pimpl<cvcourse::mainwindow>::method : cvcourse::mainwindow
 
 cvcourse::mainwindow::mainwindow() : impl(use_default_ctor())
 {
-    _method().initialize_layout();
-    _method().create_actions();
-    _method().create_menus();
+    _method(this).initialize_layout();
+    _method(this).create_actions();
+    _method(this).create_menus();
 }
 
 void cvcourse::mainwindow::open()
@@ -80,8 +80,8 @@ void cvcourse::mainwindow::open()
 
     bool ok = false;
     if (!name.isEmpty()) {
-        _method().set_image(cv::imread(name.toAscii().data()));
-        ok = !_method().image().empty();
+        _method(this).set_image(cv::imread(name.toAscii().data()));
+        ok = !_method(this).image().empty();
     }
 
     if (!ok) {
@@ -91,10 +91,10 @@ void cvcourse::mainwindow::open()
 
 void cvcourse::mainwindow::convert()
 {
-    if (!_method().image().empty()) {
+    if (!_method(this).image().empty()) {
         cv::Mat mat;
-        cv::cvtColor(_method().image(), mat, CV_BGR2GRAY);
+        cv::cvtColor(_method(this).image(), mat, CV_BGR2GRAY);
         cv::cvtColor(mat, mat, CV_GRAY2BGR);
-        _method().set_image(mat);
+        _method(this).set_image(mat);
     }
 }

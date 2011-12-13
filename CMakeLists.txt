@@ -4,7 +4,8 @@ project(opencv)
 
 # working directory
 if(NOT WORK_DIR)
-    set(WORK_DIR ${CMAKE_SOURCE_DIR}/misc/working-directory)
+    #set(WORK_DIR ${CMAKE_SOURCE_DIR}/misc/working-directory)
+    set(WORK_DIR ${CMAKE_SOURCE_DIR}/bin)
 endif()
 
 list(APPEND CMAKE_MODULE_PATH ${CMAKE_SOURCE_DIR}/misc/cmake)
