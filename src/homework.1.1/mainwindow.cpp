@@ -71,22 +71,7 @@ cvcourse::mainwindow::mainwindow() : impl(use_default_ctor())
 
 void cvcourse::mainwindow::open()
 {
-    QString name = QFileDialog::getOpenFileName(
-        this,
-        tr("Open image"),
-        ".",
-        tr("Image files (*.png *.jpg *jpeg *bmp)")
-        );
-
-    bool ok = false;
-    if (!name.isEmpty()) {
-        _method(this).set_image(cv::imread(name.toAscii().data()));
-        ok = !_method(this).image().empty();
-    }
-
-    if (!ok) {
-        QMessageBox::warning(this, tr("Open file"), tr("Open file failed."));
-    }
+    _data().canvas.load();
 }
 
 void cvcourse::mainwindow::convert()

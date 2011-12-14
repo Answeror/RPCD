@@ -28,7 +28,6 @@ namespace cvcourse
 
     private slots:
         void open();
-        void play();
         void update();
     };
 };

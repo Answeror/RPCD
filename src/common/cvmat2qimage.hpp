@@ -18,7 +18,7 @@
 namespace cvcourse
 {
     /**
-     *  @param mat must be BGR format
+     *  @param mat must be RGB format
      */
     inline QImage cvmat2qimage(cv::Mat mat)
     {

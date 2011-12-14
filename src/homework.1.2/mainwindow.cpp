@@ -49,11 +49,6 @@ struct ans::pimpl<cvcourse::mainwindow>::method : cvcourse::mainwindow
             connect(p.data(), SIGNAL(triggered()), this, SLOT(open()));
             _data().actions.push_back(p);
         }
-        {
-            auto p = action_ptr(new QAction(tr("&Play"), this), &QObject::deleteLater);
-            connect(p.data(), SIGNAL(triggered()), this, SLOT(play()));
-            _data().actions.push_back(p);
-        }
     }
 
     void create_menus()
@@ -64,7 +59,8 @@ struct ans::pimpl<cvcourse::mainwindow>::method : cvcourse::mainwindow
 
     void initialize_layout()
     {
-        this->setCentralWidget(&_data().canvas);
+        //_data().canvas.setSizePolicy(QSizePolicy::Maximum, QSizePolicy::Maximum);
+        setCentralWidget(&_data().canvas);
     }
 
     double delay()
@@ -84,10 +80,10 @@ struct ans::pimpl<cvcourse::mainwindow>::method : cvcourse::mainwindow
         // Use "y" to show that the baseLine is about
         string text = "Du Yu 11121043";
         int fontFace = FONT_HERSHEY_SCRIPT_SIMPLEX;
-        double fontScale = 2;
+        double fontScale = 1;
         int thickness = 3;
 
-        int baseline=0;
+        int baseline = 0;
         Size textSize = getTextSize(text, fontFace,
                                     fontScale, thickness, &baseline);
         baseline += thickness;
@@ -98,15 +94,15 @@ struct ans::pimpl<cvcourse::mainwindow>::method : cvcourse::mainwindow
 
         // then put the text itself
         putText(img, text, textOrg, fontFace, fontScale,
-                Scalar::all(255), thickness, 8);
+                Scalar(0, 0, 255), thickness, 8);
     }
 };
 
 cvcourse::mainwindow::mainwindow() : impl(use_default_ctor())
 {
-    _method().initialize_layout();
-    _method().create_actions();
-    _method().create_menus();
+    _method(this).initialize_layout();
+    _method(this).create_actions();
+    _method(this).create_menus();
 }
 
 void cvcourse::mainwindow::open()
@@ -124,17 +120,14 @@ void cvcourse::mainwindow::open()
         ok = _data().video.isOpened();
     }
 
-    if (!ok) {
-        QMessageBox::warning(this, tr("Open file"), tr("Open file failed."));
+    //if (!ok) {
+    //    QMessageBox::warning(this, tr("Open file"), tr("Open file failed."));
+    //}
+    if (ok) {
+        _data().timer.reset(new QTimer(this));
+        connect(_data().timer.data(), SIGNAL(timeout()), this, SLOT(update()));
+        _data().timer->start(boost::numeric_cast<int>(_method(this).delay()));
     }
-}
-
-void cvcourse::mainwindow::play()
-{
-    BOOST_ASSERT(_data().video.isOpened());
-    _data().timer.reset(new QTimer(this));
-    connect(_data().timer.data(), SIGNAL(timeout()), this, SLOT(update()));
-    _data().timer->start(boost::numeric_cast<int>(_method().delay()));
 }
 
 void cvcourse::mainwindow::update()
@@ -143,10 +136,10 @@ void cvcourse::mainwindow::update()
     boost::timer tm;
     cv::Mat mat;
     if (_data().video.read(mat)) {
-        _method().put_text(mat);
+        _method(this).put_text(mat);
         _data().canvas.set_mat(mat);
         // include cv method time
-        const double delay = _method().delay() - 1000 * tm.elapsed();
+        const double delay = _method(this).delay() - 1000 * tm.elapsed();
         _data().timer->start((std::max)(1, boost::numeric_cast<int>(delay)));
     } else {
         _data().timer.reset(nullptr);
