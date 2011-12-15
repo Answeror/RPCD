@@ -4,6 +4,7 @@
 
 #include <QFileDialog>
 #include <QWheelEvent>
+#include <QResizeEvent>
 
 #include "cvmatwidget.hpp"
 #include "cvmat2qimage.hpp"
@@ -12,9 +13,9 @@ template<>
 struct ans::pimpl<cvcourse::cvmatwidget>::data
 {
     cv::Mat mat;
-    int scale;
+    QSize size;
 
-    data() : scale(100) {}
+    data() : size(0, 0) {}
 };
 
 template<>
@@ -40,8 +41,10 @@ void cvcourse::cvmatwidget::set_mat(cv::Mat mat)
     } else {
         cv::Mat rgb;
         cv::cvtColor(mat, rgb, CV_BGR2RGB);
-        setPixmap(QPixmap::fromImage(cvmat2qimage(rgb)));
-        resize(pixmap()->size());
+        auto p = QPixmap::fromImage(cvmat2qimage(rgb));
+        _data().size = p.size();
+        hide();
+        show();
     }
 }
 
@@ -67,16 +70,24 @@ bool cvcourse::cvmatwidget::load()
     return ok;
 }
 
-void cvcourse::cvmatwidget::wheelEvent(QWheelEvent *e)
+void cvcourse::cvmatwidget::resizeEvent(QResizeEvent *e)
 {
-    auto scale = _data().scale += e->delta() / 120 * 5;
-    if (auto p = pixmap())
-    {
+    //_data().size = e->size();
+    base_type::resizeEvent(e);
+}
+
+void cvcourse::cvmatwidget::paintEvent(QPaintEvent *e)
+{
+    if (!_data().mat.empty()) {
         cv::Mat rgb;
         cv::cvtColor(_data().mat, rgb, CV_BGR2RGB);
-        cv::resize(rgb, rgb, cv::Size(), scale / 100.0, scale / 100.0);
+        cv::resize(rgb, rgb, cv::Size(_data().size.width(), _data().size.height()));
         setPixmap(QPixmap::fromImage(cvmat2qimage(rgb)));
-        resize(pixmap()->size());
     }
-    base_type::wheelEvent(e);
+    base_type::paintEvent(e);
+}
+
+QSize cvcourse::cvmatwidget::sizeHint() const 
+{
+    return _data().size;
 }

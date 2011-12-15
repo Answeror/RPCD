@@ -22,6 +22,8 @@ namespace cvcourse
 {
     /// put widget into scroll area
     std::unique_ptr<QScrollArea> scrolled(QWidget &widget, bool wheel_disabled = false);
+
+    std::unique_ptr<QWidget> resize_by_wheel(QWidget &widget);
 }
 
 #endif // __QTUTILS_HPP_2011121400043__
