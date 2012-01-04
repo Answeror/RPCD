@@ -44,10 +44,8 @@ namespace cvcourse
         /// load by popup dialog
         bool load();
 
-        void resizeEvent(QResizeEvent *e) override;
-        void paintEvent(QPaintEvent *e) override;
-
-        QSize sizeHint() const override;
+        /// zoom
+        void wheelEvent(QWheelEvent *e) override;
     };
 }
 

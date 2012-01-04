@@ -15,7 +15,6 @@
 
 #include "mainwindow.hpp"
 #include "cvmatwidget.hpp"
-#include "qtutils.hpp"
 
 typedef QSharedPointer<QAction> action_ptr;
 typedef QWeakPointer<QMenu> menu_ptr;
@@ -52,8 +51,7 @@ struct ans::pimpl<cvcourse::mainwindow>::method : cvcourse::mainwindow
 
     void initialize_layout()
     {
-        //this->setCentralWidget(&_data().canvas);
-        this->setCentralWidget(resize_by_wheel(_data().canvas).release());
+        this->setCentralWidget(&_data().canvas);
     }
 
     void set_image(cv::Mat mat)
