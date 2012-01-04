@@ -18,6 +18,7 @@ include(3rd)
 
 function(add_executable_ex target files)
     add_executable_with_3rd(${target} "${files}")
+    target_link_libraries(${target} common)
     create_vcproj_userfile_detail(${target} ${CMAKE_SOURCE_DIR}/misc/template/common)
 endfunction()
 
