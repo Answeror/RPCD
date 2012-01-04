@@ -9,7 +9,14 @@
 #include <QMenuBar>
 #include <QMenu>
 #include <QHBoxLayout>
+#include <QVBoxLayout>
+#include <QGridLayout>
 #include <QScrollArea>
+#include <QDialog>
+#include <QPushButton>
+#include <QDialogButtonBox>
+#include <QLineEdit>
+#include <QLabel>
 
 #include <ans/alpha/pimpl.hpp>
 #include <ans/alpha/pimpl_impl.hpp>
@@ -31,6 +38,7 @@ struct cvcourse::mainwindow::data
     cvcourse::cvmatwidget output;
     cvcourse::cvmatwidget input;
     cvcourse::cvmatwidget reference;
+    QDialog param_dialog;
 };
 
 namespace
@@ -57,6 +65,56 @@ namespace
             boost::for_each(impl->actions, [&](action_ptr a){ p->addAction(a.data()); });
         }
 
+        void initialize_param_dialog()
+        {
+            auto dialog = &impl->param_dialog;
+
+            dialog->setWindowTitle(tr("parameters"));
+
+            auto lay = new QVBoxLayout;
+            impl->param_dialog.setLayout(lay);
+
+            auto grid = new QGridLayout;
+            lay->addLayout(grid);
+            {
+                auto row = grid->rowCount();
+                auto label = new QLabel(tr("low"));
+                auto edit = new QLineEdit;
+                edit->setObjectName("low");
+                edit->setText("35");
+                label->setBuddy(edit);
+                grid->addWidget(label, row, 0);
+                grid->addWidget(edit, row, 1);
+            }
+            {
+                auto row = grid->rowCount();
+                auto sub = new QHBoxLayout;
+                auto label = new QLabel(tr("high"));
+                auto edit = new QLineEdit;
+                edit->setObjectName("high");
+                edit->setText("70");
+                label->setBuddy(edit);
+                grid->addWidget(label, row, 0);
+                grid->addWidget(edit, row, 1);
+            }
+            {
+                auto row = grid->rowCount();
+                auto sub = new QHBoxLayout;
+                auto label = new QLabel(tr("aperture"));
+                auto edit = new QLineEdit;
+                edit->setObjectName("aperture");
+                edit->setText("3");
+                label->setBuddy(edit);
+                grid->addWidget(label, row, 0);
+                grid->addWidget(edit, row, 1);
+            }
+
+            auto box = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel);
+            lay->addWidget(box);
+            connect(box, SIGNAL(accepted()), dialog, SLOT(accept()));
+            connect(box, SIGNAL(rejected()), dialog, SLOT(reject()));
+        }
+
         void initialize_layout()
         {
             auto input = scrolled(impl->input, true);
@@ -73,6 +131,8 @@ namespace
             auto w = new QWidget;
             w->setLayout(box);
             setCentralWidget(w);
+
+            initialize_param_dialog();
         }
 
         void set_input(cv::Mat mat)
@@ -107,11 +167,19 @@ void cvcourse::mainwindow::open()
 
 void cvcourse::mainwindow::detect()
 {
-    if (!method(this)->input().empty()) {
-        cv::Mat3b input, result;
-        cv::cvtColor(method(this)->input(), input, CV_BGR2RGB);
-        cv::cvtColor(canny(input, 0, 0, 0), result, CV_RGB2BGR);
-        method(this)->set_output(result);
+    if (!method(this)->input().empty())
+    {
+        if (impl->param_dialog.exec() == QDialog::Accepted)
+        {
+            cv::Mat input, result;
+            cv::cvtColor(method(this)->input(), input, CV_BGR2GRAY);
+            cv::cvtColor(canny(input, 
+                impl->param_dialog.findChild<QLineEdit*>("low")->text().toDouble(),
+                impl->param_dialog.findChild<QLineEdit*>("high")->text().toDouble(),
+                impl->param_dialog.findChild<QLineEdit*>("aperture")->text().toInt()
+                ), result, CV_GRAY2BGR);
+            method(this)->set_output(result);
+        }
     }
 }
 

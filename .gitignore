@@ -5,6 +5,7 @@ lib/
 Microsoft*/
 Release*/
 doc/
+bin/
 
 .svn/
 */.svn/
