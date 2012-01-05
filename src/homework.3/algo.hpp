@@ -14,6 +14,8 @@
  *  Canny edge detector.
  */
 
+#include <string>
+
 #include <opencv2/opencv.hpp>
 
 namespace cvcourse
@@ -25,9 +27,10 @@ namespace cvcourse
      *  @param low low threshold
      *  @param high high threshold
      *  @param aperture kernel size
+     *  @param impl select implementation
      *  @return GRAY
      */
-    cv::Mat1b canny(cv::Mat1b image, double low, double high, int aperture);
+    cv::Mat1b canny(cv::Mat1b image, double low, double high, int aperture, const std::string &impl);
 }
 
 #endif // __ALGO_HPP_20120104190157__

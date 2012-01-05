@@ -17,6 +17,7 @@
 #include <QDialogButtonBox>
 #include <QLineEdit>
 #include <QLabel>
+#include <QComboBox>
 
 #include <ans/alpha/pimpl.hpp>
 #include <ans/alpha/pimpl_impl.hpp>
@@ -81,7 +82,7 @@ namespace
                 auto label = new QLabel(tr("low"));
                 auto edit = new QLineEdit;
                 edit->setObjectName("low");
-                edit->setText("35");
+                edit->setText("20");
                 label->setBuddy(edit);
                 grid->addWidget(label, row, 0);
                 grid->addWidget(edit, row, 1);
@@ -92,7 +93,7 @@ namespace
                 auto label = new QLabel(tr("high"));
                 auto edit = new QLineEdit;
                 edit->setObjectName("high");
-                edit->setText("70");
+                edit->setText("150");
                 label->setBuddy(edit);
                 grid->addWidget(label, row, 0);
                 grid->addWidget(edit, row, 1);
@@ -104,6 +105,17 @@ namespace
                 auto edit = new QLineEdit;
                 edit->setObjectName("aperture");
                 edit->setText("3");
+                label->setBuddy(edit);
+                grid->addWidget(label, row, 0);
+                grid->addWidget(edit, row, 1);
+            }
+            {
+                auto row = grid->rowCount();
+                auto sub = new QHBoxLayout;
+                auto label = new QLabel(tr("implementation"));
+                auto edit = new QComboBox;
+                edit->setObjectName("implementation");
+                edit->addItems(QStringList() << "mine" << "opencv");
                 label->setBuddy(edit);
                 grid->addWidget(label, row, 0);
                 grid->addWidget(edit, row, 1);
@@ -120,9 +132,7 @@ namespace
             auto input = scrolled(impl->input, true);
             auto output = scrolled(impl->output, true);
 
-            input->setMinimumSize(300, 400);
             input->setAlignment(Qt::AlignCenter);
-            output->setMinimumSize(300, 400);
             output->setAlignment(Qt::AlignCenter);
             
             auto box = new QHBoxLayout(this);
@@ -131,6 +141,8 @@ namespace
             auto w = new QWidget;
             w->setLayout(box);
             setCentralWidget(w);
+
+            resize(400, 300);
 
             initialize_param_dialog();
         }
@@ -176,7 +188,8 @@ void cvcourse::mainwindow::detect()
             cv::cvtColor(canny(input, 
                 impl->param_dialog.findChild<QLineEdit*>("low")->text().toDouble(),
                 impl->param_dialog.findChild<QLineEdit*>("high")->text().toDouble(),
-                impl->param_dialog.findChild<QLineEdit*>("aperture")->text().toInt()
+                impl->param_dialog.findChild<QLineEdit*>("aperture")->text().toInt(),
+                impl->param_dialog.findChild<QComboBox*>("implementation")->currentText().toStdString()
                 ), result, CV_GRAY2BGR);
             method(this)->set_output(result);
         }
