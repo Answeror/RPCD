@@ -6,7 +6,7 @@
 #endfunction()
 
 # qt, opencv, boost support
-function(add_executable_with_3rd target files)
+macro(add_executable_with_3rd target files)
     # my lib
     find_package(Ans REQUIRED)
     include_directories(${ANS_INCLUDE_DIRS})
@@ -19,10 +19,13 @@ function(add_executable_with_3rd target files)
     qt_support(qt_files qt_libs)
     add_executable(${target} ${files} ${qt_files})
     target_link_libraries(${target} ${qt_libs} ${OpenCV_LIBS})
-endfunction()
+
+    #qwt added on 2012-01-06
+    qwt_support(${target})
+endmacro()
 
 # qt, opencv, boost support
-function(add_library_with_3rd target files)
+macro(add_library_with_3rd target files)
     # my lib
     find_package(Ans REQUIRED)
     include_directories(${ANS_INCLUDE_DIRS})
@@ -34,4 +37,7 @@ function(add_library_with_3rd target files)
     # qt
     qt_support(qt_files qt_libs)
     add_library(${target} STATIC ${files} ${qt_files})
-endfunction()
+
+    #qwt added on 2012-01-06
+    qwt_support(${target})
+endmacro()
