@@ -15,6 +15,7 @@
  */
 
 #include <QMainWindow>
+#include <QToolBar>
 
 #include <ans/alpha/pimpl.hpp>
 
@@ -36,9 +37,20 @@ namespace cvcourse
         const yacvwidget& plot() const;
         yacvwidget& plot();
 
-    private:
+    protected:
         struct impl;
         ans::alpha::pimpl::unique<impl> self;
+    };
+
+    class yacvtoolbar : public QToolBar
+    {
+        Q_OBJECT
+
+    public:
+        yacvtoolbar(QWidget*);
+
+    public:
+        QSize sizeHint() const override;
     };
 }
 

@@ -53,7 +53,12 @@ namespace cvcourse
 
         void set_rescale_mode(int mode);
 
-    private:
+        void show_actual_size();
+
+    public:
+        QSize sizeHint() const override;
+
+    protected:
         class impl;
         ans::alpha::pimpl::unique<impl> self;
     };

@@ -36,7 +36,7 @@ cvcourse::yacvwindow::yacvwindow(QWidget *parent) : QMainWindow(parent), self(us
     self->yacv = new yacvwidget(this);
     setCentralWidget(self->yacv);
 
-    auto toolbar = new QToolBar(this);
+    auto toolbar = new yacvtoolbar(this);
     addToolBar(toolbar);
 
     auto loadbtn = new QToolButton(toolbar);
@@ -53,15 +53,27 @@ cvcourse::yacvwindow::yacvwindow(QWidget *parent) : QMainWindow(parent), self(us
 
     toolbar->addSeparator();
 
+    auto actualbtn = new QToolButton(toolbar);
+    actualbtn->setText("1:1");
+    actualbtn->setToolButtonStyle(Qt::ToolButtonTextUnderIcon);
+    toolbar->addWidget(actualbtn);
+    connect(actualbtn, SIGNAL(clicked()), self->yacv, SLOT(show_actual_size()));
+
     auto rescaleBox = new QComboBox(toolbar);
     rescaleBox->setEditable(false);
-    rescaleBox->insertItem(yacvwidget::EXPANDING, "expanding");
-    rescaleBox->insertItem(yacvwidget::FITTING, "fitting");
-    rescaleBox->insertItem(yacvwidget::FIXED, "fixed");
     rescaleBox->insertItem(yacvwidget::NONE, "none");
+    rescaleBox->insertItem(yacvwidget::FIXED, "fixed");
+    rescaleBox->insertItem(yacvwidget::FITTING, "fitting");
+    rescaleBox->insertItem(yacvwidget::EXPANDING, "expanding");
     connect(rescaleBox, SIGNAL(activated(int)), self->yacv, SLOT(set_rescale_mode(int)));
     toolbar->addWidget(new QLabel("rescale mode: ", toolbar));
     toolbar->addWidget(rescaleBox);
+
+    rescaleBox->setCurrentIndex(yacvwidget::EXPANDING);
+
+    //toolbar->setSizePolicy(QSizePolicy::Maximum, QSizePolicy::Maximum);
+
+    //setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
 }
 
 const cvcourse::yacvwidget& cvcourse::yacvwindow::plot() const
@@ -73,4 +85,23 @@ const cvcourse::yacvwidget& cvcourse::yacvwindow::plot() const
 cvcourse::yacvwidget& cvcourse::yacvwindow::plot()
 {
     return const_cast<yacvwidget&>(static_cast<const yacvwindow*>(this)->plot());
+}
+
+cvcourse::yacvtoolbar::yacvtoolbar(QWidget *parent) : QToolBar(parent)
+{
+    //setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
+    //setSizePolicy(QSizePolicy::Minimum, QSizePolicy::Minimum);
+}
+
+QSize cvcourse::yacvtoolbar::sizeHint() const 
+{
+    auto hint = QToolBar::sizeHint();
+    if (auto p = qobject_cast<yacvwindow*>(parentWidget()))
+    {
+        if (auto yacv = qobject_cast<yacvwidget*>(p->centralWidget()))
+        {
+            hint.setWidth(yacv->sizeHint().width());
+        }
+    }
+    return hint;
 }

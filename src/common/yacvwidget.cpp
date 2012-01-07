@@ -41,9 +41,12 @@
 
 #include <ans/alpha/pimpl.hpp>
 #include <ans/alpha/pimpl_impl.hpp>
+#include <ans/alpha/method.hpp>
 
 #include <iostream>
 #include <boost/assert.hpp>
+
+#include <QDebug>
 
 namespace
 {
@@ -239,12 +242,46 @@ struct cvcourse::yacvwidget::impl
     cv::Mat mat;
     //QwtPlotSpectrogram *item;
     QwtPlotRescaler *rescaler;
+    QSize size;
 };
 
-namespace
+namespace cvcourse { namespace
 {
     const ans::alpha::pimpl::use_default_ctor use_default_ctor;
-}
+
+    struct private_method;
+    const ans::alpha::functional::method<private_method> method;
+
+    struct private_method : yacvwidget
+    {
+        void set_size_hint(QSize size)
+        {
+            //qDebug() << "set size hint\n";
+            //qDebug() << size << "\n";
+            self->size = size;
+
+            //auto label = this;
+            //QSize oldSize = label->size();    
+            ////label->setChangedSize(true);
+            //if(oldSize.width() < label->sizeHint().width() ||
+            //    oldSize.height() < label->sizeHint().height()) {    
+            //        label->setSizePolicy(QSizePolicy::Minimum, QSizePolicy::Minimum);    
+            //        label->updateGeometry();
+            //} else {
+            //    //qDebug() << "maximum\n";
+            //    label->setSizePolicy(QSizePolicy::Maximum, QSizePolicy::Maximum);
+            //    label->updateGeometry();
+            //}
+
+            //setSizePolicy(QSizePolicy::Fixed, QSizePolicy::Fixed);    
+            updateGeometry();
+            if (auto p = parentWidget())
+            {
+                p->adjustSize();
+            }
+        }
+    };
+}}
 
 cvcourse::yacvwidget::yacvwidget(QWidget *parent /*= nullptr*/) :
     base_type(parent),
@@ -252,16 +289,18 @@ cvcourse::yacvwidget::yacvwidget(QWidget *parent /*= nullptr*/) :
 {
     plotLayout()->setAlignCanvasToScales(true);
 
+    //setCanvasBackground(QColor(Qt::white));
+
     //setAxisScale(QwtPlot::xBottom, 0, 1);
     //setAxisMaxMinor(QwtPlot::xBottom, 0);
     //setAxisScale(QwtPlot::yLeft, 0, 1);
     //setAxisMaxMinor(QwtPlot::yLeft, 0);
 
     auto magnifier = new QwtPlotMagnifier(canvas());
-    magnifier->setAxisEnabled(QwtPlot::yRight, false);
+    //magnifier->setAxisEnabled(QwtPlot::yRight, false);
 
     auto panner = new QwtPlotPanner(canvas());
-    panner->setAxisEnabled( QwtPlot::yRight, false);
+    //panner->setAxisEnabled( QwtPlot::yRight, false);
 
     self->rescaler = new QwtPlotRescaler(canvas());
     self->rescaler->setReferenceAxis(QwtPlot::xBottom);
@@ -269,10 +308,10 @@ cvcourse::yacvwidget::yacvwidget(QWidget *parent /*= nullptr*/) :
     self->rescaler->setAspectRatio(QwtPlot::yRight, 0.0);
     self->rescaler->setAspectRatio(QwtPlot::xTop, 0.0);
 
-    for ( int axis = 0; axis < QwtPlot::axisCnt; axis++ )
-    {
-        self->rescaler->setIntervalHint(axis, QwtInterval(0.0, 1000.0));
-    }
+    //for ( int axis = 0; axis < QwtPlot::axisCnt; axis++ )
+    //{
+    //    self->rescaler->setIntervalHint(axis, QwtInterval(0.0, 1000.0));
+    //}
 
     //canvas()->setBorderRadius( 10 );
 }
@@ -348,12 +387,13 @@ void cvcourse::yacvwidget::set(const cv::Mat &mat)
         item->setRenderThreadCount(0); // use system specific thread
         item->setData(new raster_data(self->mat));
 
-        setAxisScale(QwtPlot::xBottom, 0, self->mat.size().width);
-        setAxisMaxMinor(QwtPlot::xBottom, 0);
-        setAxisScale(QwtPlot::yLeft, 0.0, self->mat.size().height);
-        setAxisMaxMinor(QwtPlot::yLeft, 0);
+        //setAxisScale(QwtPlot::xBottom, 0, self->mat.size().width);
+        ////setAxisMaxMinor(QwtPlot::xBottom, 0);
+        //setAxisScale(QwtPlot::yLeft, 0, self->mat.size().height);
+        ////setAxisMaxMinor(QwtPlot::yLeft, 0);
 
-        this->updateAxes();
+        //this->updateAxes();
+        show_actual_size();
     //}
 }
 
@@ -426,4 +466,37 @@ void cvcourse::yacvwidget::set_rescale_mode(int mode)
     } else {
         replot();
     }
+}
+
+void cvcourse::yacvwidget::show_actual_size()
+{
+    auto ms = self->mat.size();
+
+
+    //resize(ns);
+    //canvas()->setMinimumSize(ms.width, ms.height);
+
+    self->rescaler->setIntervalHint(QwtPlot::xBottom, QwtInterval(0, ms.width));
+    self->rescaler->setIntervalHint(QwtPlot::yLeft, QwtInterval(0, ms.height));
+
+    auto s = canvas()->size();
+    setAxisScale(QwtPlot::xBottom, 0, s.width());
+    setAxisScale(QwtPlot::yLeft, 0, s.height());
+    updateAxes();
+    replot();
+
+    //this->repaint();
+    auto off = size() - canvas()->size();
+    auto ims = QSize(ms.width, ms.height);
+    //qDebug() << "size:" << size() << "\n";
+    //qDebug() << "mat:" << ims << "\n";
+    //qDebug() << "canvas:" << canvas()->size() << "\n";
+    //qDebug() << "off:" << off << "\n";
+    auto ns = ims + off;
+    method(this)->set_size_hint(ns);
+}
+
+QSize cvcourse::yacvwidget::sizeHint() const
+{
+    return self->size;
 }
