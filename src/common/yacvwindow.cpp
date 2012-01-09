@@ -12,6 +12,7 @@
 #include <QToolButton>
 #include <QComboBox>
 #include <QLabel>
+#include <QWeakPointer>
 
 #include <boost/assert.hpp>
 
@@ -24,6 +25,7 @@
 struct cvcourse::yacvwindow::impl
 {
     cvcourse::yacvwidget *yacv;
+    QWeakPointer<QToolButton> load_button;
 };
 
 namespace
@@ -44,6 +46,8 @@ cvcourse::yacvwindow::yacvwindow(QWidget *parent) : QMainWindow(parent), self(us
     loadbtn->setToolButtonStyle(Qt::ToolButtonTextUnderIcon);
     toolbar->addWidget(loadbtn);
     connect(loadbtn, SIGNAL(clicked()), self->yacv, SLOT(load()));
+
+    self->load_button = loadbtn;
 
     auto savebtn = new QToolButton(toolbar);
     savebtn->setText("save");
@@ -87,6 +91,22 @@ cvcourse::yacvwidget& cvcourse::yacvwindow::plot()
     return const_cast<yacvwidget&>(static_cast<const yacvwindow*>(this)->plot());
 }
 
+void cvcourse::yacvwindow::enable_load()
+{
+    if (auto p = self->load_button.data())
+    {
+        p->show();
+    }
+}
+
+void cvcourse::yacvwindow::disable_load()
+{
+    if (auto p = self->load_button.data())
+    {
+        p->hide();
+    }
+}
+
 cvcourse::yacvtoolbar::yacvtoolbar(QWidget *parent) : QToolBar(parent)
 {
     //setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
@@ -104,4 +124,9 @@ QSize cvcourse::yacvtoolbar::sizeHint() const
         }
     }
     return hint;
+}
+
+cvcourse::generated_yacvwindow::generated_yacvwindow(QWidget *parent) : base_type(parent)
+{
+    disable_load();
 }

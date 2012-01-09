@@ -243,6 +243,9 @@ struct cvcourse::yacvwidget::impl
     //QwtPlotSpectrogram *item;
     QwtPlotRescaler *rescaler;
     QSize size;
+    int mode;
+
+    impl() : mode(0) {}
 };
 
 namespace cvcourse { namespace
@@ -274,6 +277,7 @@ namespace cvcourse { namespace
             //}
 
             //setSizePolicy(QSizePolicy::Fixed, QSizePolicy::Fixed);    
+            setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);    
             updateGeometry();
             if (auto p = parentWidget())
             {
@@ -288,6 +292,14 @@ cvcourse::yacvwidget::yacvwidget(QWidget *parent /*= nullptr*/) :
     self(use_default_ctor)
 {
     plotLayout()->setAlignCanvasToScales(true);
+    //plotLayout()->setCanvasMargin(100);
+    //setAutoReplot(true);
+    // 
+    //enableAxis(QwtPlot::xBottom, false);
+    //enableAxis(QwtPlot::yLeft, false);
+
+    axisScaleDraw(QwtPlot::xBottom)->setMinimumExtent(30);
+    axisScaleDraw(QwtPlot::yLeft)->setMinimumExtent(50);
 
     //setCanvasBackground(QColor(Qt::white));
 
@@ -404,6 +416,9 @@ const cv::Mat& cvcourse::yacvwidget::get() const
 
 void cvcourse::yacvwidget::set_rescale_mode(int mode)
 {
+    self->mode = mode;
+
+
     bool doEnable = true;
     QString info;
     QRectF rectOfInterest;
@@ -470,30 +485,74 @@ void cvcourse::yacvwidget::set_rescale_mode(int mode)
 
 void cvcourse::yacvwidget::show_actual_size()
 {
+    auto oldone = [&]
+    {
     auto ms = self->mat.size();
-
-
-    //resize(ns);
-    //canvas()->setMinimumSize(ms.width, ms.height);
 
     self->rescaler->setIntervalHint(QwtPlot::xBottom, QwtInterval(0, ms.width));
     self->rescaler->setIntervalHint(QwtPlot::yLeft, QwtInterval(0, ms.height));
 
-    auto s = canvas()->size();
-    setAxisScale(QwtPlot::xBottom, 0, s.width());
-    setAxisScale(QwtPlot::yLeft, 0, s.height());
-    updateAxes();
-    replot();
+    //replot();
 
     //this->repaint();
     auto off = size() - canvas()->size();
     auto ims = QSize(ms.width, ms.height);
-    //qDebug() << "size:" << size() << "\n";
-    //qDebug() << "mat:" << ims << "\n";
-    //qDebug() << "canvas:" << canvas()->size() << "\n";
-    //qDebug() << "off:" << off << "\n";
     auto ns = ims + off;
+    //qDebug() << "old:" << size();
+    //qDebug() << "new:" << ns;
+    //qDebug() << "off:" << off;
+    //qDebug() << "canvas:" << canvas()->size();
+    //qDebug() << "canvas hint:" << canvas()->sizeHint();
     method(this)->set_size_hint(ns);
+
+    //enableAxis(QwtPlot::xBottom, true);
+    //enableAxis(QwtPlot::yLeft, true);
+    auto s = canvas()->size();
+    s = ims;
+    setAxisScale(QwtPlot::xBottom, 0, s.width());
+    setAxisScale(QwtPlot::yLeft, 0, s.height());
+    updateAxes();
+    replot();
+    //enableAxis(QwtPlot::xBottom, false);
+    //enableAxis(QwtPlot::yLeft, false);
+
+    //setAxisScaleDiv(QwtPlot::xBottom, QwtScaleDiv(0, s.width()));
+    //setAxisScaleDiv(QwtPlot::yLeft, QwtScaleDiv(0, s.height()));
+    
+    //set_rescale_mode(self->mode);
+    };
+
+    oldone();
+
+    //auto ms = self->mat.size();
+    //auto ims = QSize(ms.width, ms.height);
+
+    //canvas()->setFixedSize(ims);
+    //canvas()->updateGeometry();
+    //updateGeometry();
+    //if (auto p = parentWidget())
+    //{
+    //    p->adjustSize();
+    //}
+    //
+    //enableAxis(QwtPlot::xBottom, true);
+    //enableAxis(QwtPlot::yLeft, true);
+    //auto s = canvas()->size();
+    //s = ims;
+    //setAxisScale(QwtPlot::xBottom, 0, s.width());
+    //setAxisScale(QwtPlot::yLeft, 0, s.height());
+    //updateAxes();
+    //replot();
+    //enableAxis(QwtPlot::xBottom, false);
+    //enableAxis(QwtPlot::yLeft, false);
+
+    //canvas()->setFixedSize(QWIDGETSIZE_MAX, QWIDGETSIZE_MAX);
+    //canvas()->updateGeometry();
+    //updateGeometry();
+    //if (auto p = parentWidget())
+    //{
+    //    p->adjustSize();
+    //}
 }
 
 QSize cvcourse::yacvwidget::sizeHint() const

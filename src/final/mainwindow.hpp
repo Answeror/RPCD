@@ -14,25 +14,88 @@
  *  
  */
 
-#include <QDialog>
+//#include <QDialog>
+#include <QWizard>
+#include <QWizardPage>
 
 #include <ans/alpha/pimpl.hpp>
 
 namespace cvcourse
 {
-    class mainwindow : public QDialog
+    class mainwindow : public QWizard
     {
         Q_OBJECT
 
     public:
+        typedef mainwindow this_type;
+        typedef QWizard base_type;
+
+    public:
         mainwindow();
 
-    private Q_SLOTS:
-        void hough();
-
-    private:
+    public:
         struct impl;
         ans::alpha::pimpl::unique<impl> self;
+    };
+
+    template<class Derived>
+    struct page
+    {
+        typedef Derived this_type;
+        typedef QWizardPage base_type;
+    };
+
+    class input_page : public QWizardPage, public page<input_page>
+    {
+        Q_OBJECT
+
+    public:
+        input_page(QWidget *parent = nullptr);
+
+    public:
+        void initializePage() override;
+    };
+
+    class preprocess_page : public QWizardPage, public page<preprocess_page>
+    {
+        Q_OBJECT
+
+    public:
+        preprocess_page(QWidget*);
+
+    public Q_SLOTS:
+        void preprocess();
+        void iterate();
+
+    public:
+        void initializePage() override;
+        void cleanupPage() override;
+    };
+
+    class hough_page : public QWizardPage, public page<hough_page>
+    {
+        Q_OBJECT
+
+    public:
+        hough_page(QWidget*);
+
+    public Q_SLOTS:
+        void hough();
+
+    public:
+        void initializePage() override;
+        void cleanupPage() override;
+    };
+
+    class match_page : public QWizardPage, public page<match_page>
+    {
+        Q_OBJECT
+
+    public:
+        match_page(QWidget*);
+
+    public:
+        void initializePage() override;
     };
 }
 

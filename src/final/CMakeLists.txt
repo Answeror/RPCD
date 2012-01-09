@@ -1,3 +1,4 @@
-file(GLOB_RECURSE FILES *.hpp *.cpp)
+file(GLOB_RECURSE FILES *.h *.hpp *.cpp)
+source_group_by_dir(FILES)
 set(TARGET final)
 add_executable_ex(${TARGET} "${FILES}")

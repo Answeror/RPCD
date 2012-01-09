@@ -42,6 +42,19 @@ namespace cvcourse
         ans::alpha::pimpl::unique<impl> self;
     };
 
+    /// for generate image
+    class generated_yacvwindow : public yacvwindow
+    {
+        Q_OBJECT
+
+    public:
+        typedef generated_yacvwindow this_type;
+        typedef yacvwindow base_type;
+
+    public:
+        generated_yacvwindow(QWidget*);
+    };
+
     class yacvtoolbar : public QToolBar
     {
         Q_OBJECT
