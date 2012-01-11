@@ -52,7 +52,7 @@ namespace cvcourse
         typedef yacvwindow base_type;
 
     public:
-        generated_yacvwindow(QWidget*);
+        generated_yacvwindow(QWidget *parent = 0);
     };
 
     class yacvtoolbar : public QToolBar

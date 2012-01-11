@@ -18,57 +18,10 @@
 
 #include <qDebug>
 
-namespace cvcourse { namespace
+using namespace cvcourse;
+
+namespace
 {
-    cv::Mat1b thresh(const cv::Mat3b &input)
-    {
-        cv::Mat gray;
-        cv::cvtColor(input, gray, CV_BGR2GRAY);
-        cv::Mat otsu;
-        cv::threshold(gray, otsu, 1, 255, cv::THRESH_OTSU);
-        return otsu;
-    }
-
-    /// assume background has larger area
-    cv::Mat1b make_background_black(const cv::Mat1b &input)
-    {
-        //qDebug() << cv::mean(input)(0);
-        if (cv::mean(input)(0) >= 128)
-        {
-            cv::Mat1b result;
-            result = input ^ 255;
-            return result;
-        }
-        return input;
-    }
-
-    std::vector<std::vector<cv::Point> > find_contours(const cv::Mat1b &input)
-    {
-        using namespace cv;
-
-        auto src = input.clone();
-
-        std::vector<std::vector<Point> > contours;
-        std::vector<Vec4i> hierarchy;
-
-        findContours( src, contours, hierarchy,
-            CV_RETR_EXTERNAL, CV_CHAIN_APPROX_NONE );
-
-        //qDebug() << contours.size();
-
-        // iterate through all the top-level contours,
-        // draw each connected component with its own random color
-        //int idx = 0;
-        //for( ; idx >= 0; idx = hierarchy[idx][0] )
-        //{
-        //    Scalar color( rand()&255, rand()&255, rand()&255 );
-        //    //drawContours( dst, contours, idx, color, CV_FILLED, 8, hierarchy );
-        //}
-
-
-        return contours;
-    }
-
     cv::Mat1b show_contours(const cv::Mat1b &input)
     {
         cv::Mat1b dst(input.size(), 0);
@@ -81,7 +34,7 @@ namespace cvcourse { namespace
         auto threshed = make_background_black(thresh(input));
         return find_contours(threshed);
     }
-}}
+}
 
 cv::Mat3b cvcourse::preprocess(const cv::Mat3b &input, const preprocess_params &params)
 {
@@ -141,7 +94,7 @@ namespace
     }
 
     /// larger center in smaller circle
-    bool collide(const cv::Vec4f &u, const cv::Vec4f &v)
+    bool collide(const cv::Vec3f &u, const cv::Vec3f &v)
     {
         auto dx = u(0) - v(0);
         auto dy = u(1) - v(1);
@@ -162,6 +115,24 @@ std::vector<cv::Vec3f> cvcourse::detect_disks(
 
     std::vector<cv::Vec3f> circles;
 
+    /// just use hough circle
+    {
+        cv::GaussianBlur(gray, gray, cv::Size(9, 9), 2, 2);
+        cv::HoughCircles(
+            gray,
+            circles,
+            CV_HOUGH_GRADIENT,
+            2, //params.dp,
+            params.maximum_radius / 2, //params.center_minimum_distance,
+            100, //params.canny_high_threshold,
+            50, //std::max(50.0, params.maximum_radius / 3), //params.accumulator_threshold,
+            params.minimum_radius,
+            params.maximum_radius
+            );
+    }
+
+    /// use contour
+#if 0
     {
         auto contours = find_contours_from_original(input);
 
@@ -209,6 +180,7 @@ std::vector<cv::Vec3f> cvcourse::detect_disks(
             }
         }
     }
+#endif
 
     //{
     //    auto candi = yahc(src_gray, 1, 30);
@@ -283,7 +255,7 @@ std::vector<cv::Vec3f> cvcourse::detect_disks(
     return circles;
 }
 
-cv::Mat3b cvcourse::draw_cycles(const cv::Mat3b &input, const std::vector<cv::Vec3f> &circles)
+cv::Mat3b cvcourse::draw_circles(const cv::Mat3b &input, const std::vector<cv::Vec3f> &circles)
 {
     using namespace cv;
 
@@ -301,4 +273,87 @@ cv::Mat3b cvcourse::draw_cycles(const cv::Mat3b &input, const std::vector<cv::Ve
     }
 
     return src;
+}
+
+std::vector<std::vector<cv::Point> > cvcourse::find_contours(const cv::Mat1b &input)
+{
+    using namespace cv;
+
+    auto src = input.clone();
+
+    std::vector<std::vector<Point> > contours;
+    std::vector<Vec4i> hierarchy;
+
+    findContours( src, contours, hierarchy,
+        CV_RETR_EXTERNAL, CV_CHAIN_APPROX_NONE );
+
+    //qDebug() << contours.size();
+
+    // iterate through all the top-level contours,
+    // draw each connected component with its own random color
+    //int idx = 0;
+    //for( ; idx >= 0; idx = hierarchy[idx][0] )
+    //{
+    //    Scalar color( rand()&255, rand()&255, rand()&255 );
+    //    //drawContours( dst, contours, idx, color, CV_FILLED, 8, hierarchy );
+    //}
+
+
+    return contours;
+}
+
+cv::Mat1b cvcourse::thresh(const cv::Mat3b &input)
+{
+    cv::Mat gray;
+    cv::cvtColor(input, gray, CV_BGR2GRAY);
+    cv::Mat otsu;
+    cv::threshold(gray, otsu, 1, 255, cv::THRESH_OTSU);
+    return otsu;
+}
+
+cv::Mat1b cvcourse::make_background_black(const cv::Mat1b &input)
+{
+    //qDebug() << cv::mean(input)(0);
+    if (cv::mean(input)(0) >= 128)
+    {
+        cv::Mat1b result;
+        result = input ^ 255;
+        return result;
+    }
+    return input;
+}
+
+cvcourse::circle_container cvcourse::merge_circles(const circle_container &circles)
+{
+    const int n = circles.size();
+    std::vector<bool> bad(n, false);
+
+    for (int i = 0; i != n; ++i)
+    {
+        if (bad[i]) continue;
+        for (int j = i + 1; j != n; ++j)
+        {
+            if (bad[j]) continue;
+            if (collide(circles[i], circles[j]))
+            {
+                // smaller remain
+                if (circles[j](2) < circles[i](2)) {
+                    bad[i] = true;
+                } else {
+                    bad[j] = true;
+                }
+            }
+        }
+    }
+
+    circle_container result;
+    for (int i = 0; i != n; ++i)
+    {
+        if (!bad[i]) result.push_back(circles[i]);
+    }
+
+    //qDebug() << result.size();
+
+    //return result;
+    return circles;
 }

@@ -1,3 +1,4 @@
+add_definitions(-DBOOST_ENABLE_ASSERT_HANDLER)
 file(GLOB_RECURSE FILES *.h *.hpp *.cpp)
 source_group_by_dir(FILES)
 set(TARGET final)
