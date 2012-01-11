@@ -52,7 +52,7 @@ namespace
     static const double pi = std::acos(-1.0);
     static const double COVER_THRESHOLD = 0.5;
     static const double COMBINE_THRESHOLD = 5;
-    static const double COMBINE_THRESHOLD_RELATIVE = 0.2;
+    static const double COMBINE_THRESHOLD_RELATIVE = 0.3;
     static const double CONTOUR_APPROXIMATION_THRESHOLD = 2;
     static const double TURN_LOWER_THRESHOLD = 6;
     static const double TURN_UPPER_THRESHOLD = 60;
@@ -60,8 +60,8 @@ namespace
     static const double EDGE_LENGTH_THRESHOLD = 10;
     static const double MSE_THRESHOLD = 5;
     // TODO duplicated in mainwindow.cpp
-    const double IDEAL_RADIUS = 60;
-    const double P2E_THRESHOLD = std::sin(cml::rad(0.0));
+    const double IDEAL_RADIUS = 50;
+    const double P2E_THRESHOLD = std::sin(cml::rad(60.0));
 
     /// accessors
     float x(const circle &c) { return c(0); }
@@ -70,6 +70,11 @@ namespace
     float& x(circle &c) { return c(0); }
     float& y(circle &c) { return c(1); }
     float& r(circle &c) { return c(2); }
+
+    bool good_mse(double mse, double radius)
+    {
+        return mse < std::max(MSE_THRESHOLD, radius * MSE_THRESHOLD / IDEAL_RADIUS);
+    }
     
     struct turn
     {
@@ -161,6 +166,8 @@ namespace
     template<class PointRange>
     double calculate_cover(cml::vector2d center, const PointRange &points)
     {
+        /// old code, wrong when > 2 pi
+#if 0
         BOOST_ASSERT(boost::size(points) > 2);
 
         // find reference point
@@ -174,6 +181,17 @@ namespace
             points.front() - center,
             *mid - center,
             points.back() - center
+            );
+#endif
+
+        BOOST_ASSERT(boost::size(points) > 2);
+        
+        return boost::accumulate(
+            boost::irange<int>(1, points.size())
+            | bada::transformed([&](int i){
+                return unsigned_angle_2D(points[i - 1] - center, points[i] - center);
+                }),
+            0.0
             );
     }
 
@@ -215,10 +233,11 @@ namespace
 
                 auto ret = fit_circle::go(points);
 
-                if (ret.mse > MSE_THRESHOLD) return none;
+                //if (ret.mse > MSE_THRESHOLD) return none;
+                if (!good_mse(ret.mse, ret.radius)) return none;
 
                 /// check if edge near center
-                if(false){
+                {
                     auto p2e = [](cml::vector2d p, cml::vector2d a, cml::vector2d b)->double
                     {
                         BOOST_ASSERT(!same(a, b));
@@ -236,7 +255,8 @@ namespace
                 r(a.guess) = ret.radius;
                 a.cover = calculate_cover(ret.center, points);
 
-                //if (length(ret.center - cml::vector2d(385, 160) * 2.03562) < 15 * 2.03562)
+                //double scale = 1;
+                //if (length(ret.center - cml::vector2d(1012, 843) * scale) < 40 * scale)
                 //{
                 //    qDebug() << "---";
                 //    qDebug() << "points:" << points.size();
@@ -360,6 +380,17 @@ namespace
         return result;
     }
 
+    bool near(circle a, circle b)
+    {
+        auto minr = std::min(r(a), r(b));
+        auto maxr = std::max(r(a), r(b));
+        BOOST_ASSERT(maxr > 1e-8);
+
+        return
+            minr > (1 - COMBINE_THRESHOLD_RELATIVE) * maxr &&
+            length(cml::vector2d(x(a) - x(b), y(a) - y(b))) <= COMBINE_THRESHOLD_RELATIVE * maxr;
+    }
+
     bool could_combine(const arc &a, const arc &b)
     {
         // too restrict
@@ -368,13 +399,7 @@ namespace
         //    std::abs(y(a.guess) - y(b.guess)) <= COMBINE_THRESHOLD &&
         //    std::abs(r(a.guess) - r(b.guess)) <= COMBINE_THRESHOLD;
 
-        auto minr = std::min(r(a.guess), r(b.guess));
-        auto maxr = std::max(r(a.guess), r(b.guess));
-        BOOST_ASSERT(maxr > 1e-8);
-
-        return
-            minr > (1 - COMBINE_THRESHOLD_RELATIVE) * maxr &&
-            length(cml::vector2d(x(a.guess) - x(b.guess), y(a.guess) - y(b.guess))) <= COMBINE_THRESHOLD_RELATIVE * maxr;
+        return near(a.guess, b.guess);
     }
 
     template<class PointContainerRange>
@@ -411,7 +436,8 @@ namespace
         // init benefit
         for (int i = 0; i != n; ++i)
         {
-            benefit[i] = calculate_cover(gret.center, at(pcs, i));
+            //benefit[i] = calculate_cover(gret.center, at(pcs, i));
+            benefit[i] = 1;
         }
 
         const double inf = 1e8;
@@ -443,9 +469,18 @@ namespace
         }
     }
 
-    circle_container combine_arcs(const arc_container &arcs)
+    struct circle_with_info
     {
-        if (arcs.empty()) return circle_container();
+        cvcourse::circle circle;
+        double mse;
+    };
+    typedef std::vector<circle_with_info> circle_with_info_container;
+
+    circle_with_info_container combine_arcs(const arc_container &arcs)
+    {
+        typedef circle_with_info_container result_type;
+
+        if (arcs.empty()) return result_type();
 
 #if 0
         {
@@ -503,7 +538,7 @@ namespace
             std::vector<int> mark(arc_count, -1);
             int mark_kind_count = 0;
 
-            circle_container result;
+            result_type result;
 
             // make groups
             for (int i = 0; i != arc_count; ++i)
@@ -541,9 +576,11 @@ namespace
                         //auto ret = fit_circle::go(points);
                         auto ret = bag(indics | bada::transformed([&](int i){ return arcs[i].points; }), COVER_THRESHOLD * 2 * pi);
 
-                        if (ret.mse <= MSE_THRESHOLD)
+                        //if (ret.mse <= MSE_THRESHOLD)
+                        if (good_mse(ret.mse, ret.radius))
                         {
-                            result.push_back(circle(ret.center[0], ret.center[1], ret.radius));
+                            result_type::value_type elem = { circle(ret.center[0], ret.center[1], ret.radius), ret.mse };
+                            result.push_back(elem);
                         }
                     }
 
@@ -556,6 +593,35 @@ namespace
             return result;
         }
     }
+
+    circle_container select_best_circle(const circle_with_info_container &cis)
+    {
+        const int n = cis.size();
+        std::vector<bool> bad(n, false);
+
+        for each (auto i in boost::irange<int>(0, n))
+        {
+            if (bad[i]) continue;
+            for each (auto j in boost::irange<int>(i + 1, n))
+            {
+                if (bad[j]) continue;
+                if (near(cis[i].circle, cis[j].circle))
+                {
+                    if (cis[i].mse < cis[j].mse) {
+                        bad[j] = true;
+                    } else {
+                        bad[i] = true;
+                    }
+                }
+            }
+        }
+
+        return
+            boost::irange<int>(0, n) |
+            bada::filtered([&](int i){ return !bad[i]; }) |
+            bada::transformed([&](int i){ return cis[i].circle; }) |
+            boost::to_container;
+    }
 }
 
 cvcourse::circle_container cvcourse::edcircles(const edge_segment_container &es)
@@ -567,7 +633,7 @@ cvcourse::circle_container cvcourse::edcircles(const edge_segment_container &es)
         ba::push_back(arcs).range(calculate_arcs(e));
     }
 
-    return combine_arcs(arcs);
+    return select_best_circle(combine_arcs(arcs));
 }
 
 cvcourse::edge_segment cvcourse::contour_to_edge_segment(const contour &c)

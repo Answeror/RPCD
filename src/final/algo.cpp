@@ -284,8 +284,10 @@ std::vector<std::vector<cv::Point> > cvcourse::find_contours(const cv::Mat1b &in
     std::vector<std::vector<Point> > contours;
     std::vector<Vec4i> hierarchy;
 
+    //findContours( src, contours, hierarchy,
+    //    CV_RETR_EXTERNAL, CV_CHAIN_APPROX_NONE );
     findContours( src, contours, hierarchy,
-        CV_RETR_EXTERNAL, CV_CHAIN_APPROX_NONE );
+        CV_RETR_LIST, CV_CHAIN_APPROX_SIMPLE);
 
     //qDebug() << contours.size();
 
@@ -304,11 +306,35 @@ std::vector<std::vector<cv::Point> > cvcourse::find_contours(const cv::Mat1b &in
 
 cv::Mat1b cvcourse::thresh(const cv::Mat3b &input)
 {
+#if 0
     cv::Mat gray;
     cv::cvtColor(input, gray, CV_BGR2GRAY);
+    cv::GaussianBlur(gray, gray, cv::Size(9, 9), 2, 2);
+    cv::equalizeHist(gray, gray);
     cv::Mat otsu;
-    cv::threshold(gray, otsu, 1, 255, cv::THRESH_OTSU);
+    //cv::threshold(gray, otsu, 1, 255, cv::THRESH_OTSU);
+    cv::adaptiveThreshold(gray, otsu, 255, CV_ADAPTIVE_THRESH_MEAN_C, CV_THRESH_BINARY, 3, 5);
     return otsu;
+#endif
+
+#if 1
+    cv::Mat1b result;
+    cv::cvtColor(input, result, CV_BGR2GRAY);
+    cv::GaussianBlur(result, result, cv::Size(9, 9), 2, 2);
+    cv::Canny(result, result, 15, 35, 3);
+    auto elem = cv::getStructuringElement(cv::MORPH_ELLIPSE, cv::Size(5, 5));
+    //cv::morphologyEx(result, result, cv::MORPH_CLOSE, elem);
+    //cv::dilate(result, result, elem);
+    //qDebug() << "well";
+    return result;
+#endif
+
+    //cv::Mat1b result;
+    //cv::cvtColor(input, result, CV_BGR2GRAY);
+    //auto elem = cv::getStructuringElement(cv::MORPH_ELLIPSE, cv::Size(5, 5));
+    //cv::morphologyEx(result, result, cv::MORPH_GRADIENT, elem);
+    //cv::threshold(result, result, 1, 255, cv::THRESH_OTSU);
+    //return result;
 }
 
 cv::Mat1b cvcourse::make_background_black(const cv::Mat1b &input)

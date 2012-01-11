@@ -65,7 +65,7 @@ struct cvcourse::mainwindow::impl
 
 namespace
 {
-    const double IDEAL_RADIUS = 60;
+    const double IDEAL_RADIUS = 50;
 
     const ans::alpha::pimpl::use_default_ctor use_default_ctor;
 
@@ -274,7 +274,7 @@ namespace
                             }
 
                             auto candis = candidate_radius(radius, radios);
-                            qDebug() << "well";
+                            //qDebug() << "well";
 
                             self->radius_descriptions.clear();
                             for each (auto candi in candis | bada::filtered([](const radius_container &rs){ return !rs.empty(); }))
@@ -320,10 +320,22 @@ namespace
                                 self->contour_approximation_window = ya;
                             }
                             auto ya = self->contour_approximation_window.data();
-                            auto approximation = source.clone();
-                            cv::polylines(approximation, es, true, cv::Scalar(255), 2);
-                            ya->plot().set(approximation);
+                            auto app = make_background_black(thresh(source));
+                            cv::cvtColor(app, app, CV_GRAY2BGR);
+                            cv::polylines(app, es, true, cv::Scalar(255), 2);
+                            ya->plot().set(app);
                             ya->show();
+
+                            //{
+                            //    auto ya = new generated_yacvwindow(this);
+                            //    ya->setWindowTitle("asdfsadfs");
+                            //    auto g = source.clone();
+                            //    cv::cvtColor(g, g, CV_BGR2GRAY);
+                            //    cv::Canny(g, g, 100, 200);
+                            //    cv::cvtColor(g, g, CV_GRAY2BGR);
+                            //    ya->plot().set(g);
+                            //    ya->show();
+                            //}
                         }
 
                         //qDebug() << "well";
