@@ -321,9 +321,9 @@ cv::Mat1b cvcourse::thresh(const cv::Mat3b &input)
     cv::Mat1b result;
     cv::cvtColor(input, result, CV_BGR2GRAY);
     cv::GaussianBlur(result, result, cv::Size(9, 9), 2, 2);
-    cv::Canny(result, result, 15, 35, 3);
-    auto elem = cv::getStructuringElement(cv::MORPH_ELLIPSE, cv::Size(5, 5));
-    //cv::morphologyEx(result, result, cv::MORPH_CLOSE, elem);
+    cv::Canny(result, result, 10, 30, 3);
+    auto elem = cv::getStructuringElement(cv::MORPH_ELLIPSE, cv::Size(3, 3));
+    cv::morphologyEx(result, result, cv::MORPH_CLOSE, elem);
     //cv::dilate(result, result, elem);
     //qDebug() << "well";
     return result;

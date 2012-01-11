@@ -35,6 +35,8 @@ namespace
 
 cvcourse::yacvwindow::yacvwindow(QWidget *parent) : QMainWindow(parent), self(use_default_ctor)
 {
+    resize(400, 300);
+
     self->yacv = new yacvwidget(this);
     setCentralWidget(self->yacv);
 

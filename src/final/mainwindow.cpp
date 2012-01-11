@@ -25,6 +25,7 @@
 #include <boost/range.hpp>
 #include <boost/assign.hpp>
 #include <boost/range/to_container.hpp>
+#include <boost/range/algorithm/max_element.hpp>
 
 #include "mainwindow.hpp"
 #include "yacvwindow.hpp"
@@ -116,6 +117,41 @@ namespace
 
                 BOOST_ASSERT(!input.empty());
 
+                adaptive_edcircles::params params = {
+                    field("no_cover_radio").toDouble()
+                    };
+                auto ed = adaptive_edcircles(input, params);
+                {
+                    if (!self->contour_approximation_window.data())
+                    {
+                        auto ya = new generated_yacvwindow(this);
+                        ya->setWindowTitle(tr("contour approximation"));
+                        self->contour_approximation_window = ya;
+                    }
+                    auto ya = self->contour_approximation_window.data();
+                    auto app = thresh(input);
+                    cv::cvtColor(app, app, CV_GRAY2BGR);
+                    cv::polylines(app, ed.edge_segments, true, cv::Scalar(255), 2); // blue
+                    ya->plot().set(app);
+                    ya->show();
+                }
+                {
+                    if (!self->edcircles_window.data())
+                    {
+                        auto ya = new generated_yacvwindow(this);
+                        ya->setWindowTitle(tr("detected circles"));
+                        self->edcircles_window = ya;
+                    }
+                    auto ya = self->edcircles_window.data();
+                    auto result = input.clone();
+                    for each (auto c in ed.circles)
+                    {
+                        cv::circle(result, cv::Point(cvRound(c(0)), cvRound(c(1))), cvRound(c(2)), cv::Scalar(0), 2 * c(2) / IDEAL_RADIUS);
+                    }
+                    ya->plot().set(result);
+                    ya->show();
+                }
+
                 //if (false) {
                 //    //qDebug() << field("dilate_kernel_radio");
 
@@ -140,6 +176,7 @@ namespace
                 //    ya->plot().set(preprocessed_image);
                 //    ya->show();
                 //}
+#if 0
 
 #if 0
                 {
@@ -258,6 +295,8 @@ namespace
                 {
                     auto source = input.clone();
 
+                    /// radius description
+#if 0
                     {
                         auto contours = find_contours(make_background_black(thresh(source)));
                         auto circle_contours = boost::copy_range<decltype(contours)>(contours | bada::filtered(&candidate_contour));
@@ -285,8 +324,21 @@ namespace
                             }
                         }
                     }
+#endif
+
+
+                    auto esc = [&]()->edge_segment_container
+                    {
+                        auto contours = find_contours(make_background_black(thresh(source)));
+                        edge_segment_container es = contours |
+                            bada::transformed(&contour_to_edge_segment) |
+                            bada::filtered([](const edge_segment &e){ return !e.empty(); }) |
+                            boost::to_container;
+                        return es;
+                    };
 
                     /// scale
+#if 0
                     if (!self->radius_descriptions.empty())
                     {
                         auto &raw = self->radius_descriptions.back();
@@ -294,10 +346,20 @@ namespace
                         qDebug() << "scale:" << scale;
                         cv::resize(source, source, cv::Size(), scale, scale);
                     }
+#endif
+                    {
+                        auto cs = edcircles(esc());
+                        if (!cs.empty())
+                        {
+                            auto largest = *boost::max_element(cs | bada::transformed([&](circle c){ return c(2); }));
+                            const double scale = IDEAL_RADIUS / largest;
+                            qDebug() << "scale:" << scale;
+                            cv::resize(source, source, cv::Size(), scale, scale);
+                        }
+                    }
 
                     /// ed
                     {
-                        auto contours = find_contours(make_background_black(thresh(source)));
                         //cv::GaussianBlur(source, source, cv::Size(9, 9), 2, 2);
                         //make_background_black(thresh(source)).copyTo(source);
                         ////auto elem = cv::getStructuringElement(cv::MORPH_ELLIPSE, cv::Size(2, 2));
@@ -307,11 +369,8 @@ namespace
 
                         //auto source = input.clone();
                         //auto contours = find_contours(make_background_black(thresh(source)));
-                        edge_segment_container es = contours |
-                            bada::transformed(&contour_to_edge_segment) |
-                            bada::filtered([](const edge_segment &e){ return !e.empty(); }) |
-                            boost::to_container;
 
+                        auto es = esc();
                         {
                             if (!self->contour_approximation_window.data())
                             {
@@ -338,14 +397,12 @@ namespace
                             //}
                         }
 
-                        //qDebug() << "well";
-                        auto cs = edcircles(es);
-                        //qDebug() << cs.size();
                         {
+                            auto cs = edcircles(esc());
                             if (!self->edcircles_window.data())
                             {
                                 auto ya = new generated_yacvwindow(this);
-                                ya->setWindowTitle(tr("edcircles"));
+                                ya->setWindowTitle(tr("detected circles"));
                                 self->edcircles_window = ya;
                             }
                             auto ya = self->edcircles_window.data();
@@ -359,6 +416,7 @@ namespace
                         }
                     }
                 }
+#endif
             }
         };
     }
@@ -372,7 +430,7 @@ cvcourse::mainwindow::mainwindow() : self(use_default_ctor)
 {
     addPage(new input_page(this));
     addPage(new preprocess_page(this));
-    addPage(new hough_page(this));
+    //addPage(new hough_page(this));
     //addPage(new match_page(this));
 }
 
@@ -382,8 +440,27 @@ cvcourse::input_page::input_page(QWidget *parent) : base_type(parent)
 
 void cvcourse::input_page::initializePage()
 {
+}
+
+void cvcourse::input_page::setVisible(bool visible)
+{
+    QWizardPage::setVisible(visible);
+
+    if (visible) {
+        wizard()->setButtonText(QWizard::CustomButton1, tr("&Open"));
+        wizard()->setOption(QWizard::HaveCustomButton1, true);
+        connect(wizard(), SIGNAL(customButtonClicked(int)),
+            this, SLOT(show_input_window()));
+    } else {
+        wizard()->setOption(QWizard::HaveCustomButton1, false);
+        disconnect(wizard(), SIGNAL(customButtonClicked(int)),
+            this, SLOT(show_input_window()));
+    }
+}
+
+void cvcourse::input_page::show_input_window()
+{
     input_page_method method;
-    auto main = &method(this)->main();
     auto self = &method(this)->self();
 
     self->rawwin = new yacvwindow(this);
@@ -628,6 +705,35 @@ cvcourse::preprocess_page::preprocess_page(QWidget *parent) : base_type(parent)
     }
 #endif
 
+    auto gen = [&](const QString &name, double low, double high, double step, double init)
+    {
+        auto lay = new QHBoxLayout;
+        mlay->addLayout(lay);
+
+        QString labelname = name;
+        labelname.replace("_", " ");
+        auto label = new QLabel(labelname, this);
+        lay->addWidget(label);
+
+        auto box = new QDoubleSpinBox(this);
+        lay->addWidget(box);
+        box->setMinimum(low);
+        box->setMaximum(high);
+        box->setSingleStep(step);
+        registerField(name, box, "value", "valueChanged()");
+
+        auto slider = new QwtSlider(this, Qt::Horizontal, 
+            QwtSlider::BottomScale, QwtSlider::Groove);
+        lay->addWidget(slider);
+        slider->setHandleSize(10, 16);
+        slider->setRange(low, high, step);
+
+        connect(box, SIGNAL(valueChanged(double)), slider, SLOT(setValue(double)));
+        connect(slider, SIGNAL(valueChanged(double)), box, SLOT(setValue(double)));
+
+        box->setValue(init);
+    };
+#if 0
     {
         auto lay = new QHBoxLayout;
         mlay->addLayout(lay);
@@ -644,17 +750,24 @@ cvcourse::preprocess_page::preprocess_page(QWidget *parent) : base_type(parent)
 
         spin->setValue(1);
     }
+#endif
+
+    gen("no_cover_radio", 0, 1, 0.01, 0.5);
     {
-        auto lay = new QHBoxLayout;
-        mlay->addLayout(lay);
+        //auto lay = new QHBoxLayout;
+        //mlay->addLayout(lay);
 
-        auto pre = new QPushButton("preprocess", this);
-        lay->addWidget(pre);
-        connect(pre, SIGNAL(clicked()), SLOT(preprocess()));
+        //auto pre = new QPushButton("preprocess", this);
+        //lay->addWidget(pre);
+        //connect(pre, SIGNAL(clicked()), SLOT(preprocess()));
 
-        auto ite = new QPushButton("iterate", this);
-        lay->addWidget(ite);
-        connect(ite, SIGNAL(clicked()), SLOT(iterate()));
+        //auto ite = new QPushButton("iterate", this);
+        //lay->addWidget(ite);
+        //connect(ite, SIGNAL(clicked()), SLOT(iterate()));
+
+        //wizard()->setButtonText(QWizard::CustomButton1, tr("&Detect"));
+        //wizard()->setOption(QWizard::HaveCustomButton1, true);
+        //connect(wizard(), SIGNAL(customButtonClicked(int)), this, SLOT(preprocess()));
     }
 }
 
@@ -690,4 +803,20 @@ void cvcourse::preprocess_page::iterate()
 
     BOOST_ASSERT(!method(this)->preprocessed_image().empty());
     method(this)->preprocess(method(this)->preprocessed_image());
+}
+
+void cvcourse::preprocess_page::setVisible(bool visible)
+{
+    QWizardPage::setVisible(visible);
+
+    if (visible) {
+        wizard()->setButtonText(QWizard::CustomButton1, tr("&Detect"));
+        wizard()->setOption(QWizard::HaveCustomButton1, true);
+        connect(wizard(), SIGNAL(customButtonClicked(int)),
+            this, SLOT(preprocess()));
+    } else {
+        wizard()->setOption(QWizard::HaveCustomButton1, false);
+        disconnect(wizard(), SIGNAL(customButtonClicked(int)),
+            this, SLOT(preprocess()));
+    }
 }

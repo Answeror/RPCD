@@ -52,8 +52,12 @@ namespace cvcourse
     public:
         input_page(QWidget *parent = nullptr);
 
+    public Q_SLOTS:
+        void show_input_window();
+
     public:
         void initializePage() override;
+        void setVisible(bool visible) override;
     };
 
     class preprocess_page : public QWizardPage, public page<preprocess_page>
@@ -70,6 +74,7 @@ namespace cvcourse
     public:
         void initializePage() override;
         void cleanupPage() override;
+        void setVisible(bool visible) override;
     };
 
     class hough_page : public QWizardPage, public page<hough_page>

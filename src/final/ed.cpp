@@ -9,6 +9,7 @@
  */
 
 #include <cmath>
+#include <algorithm>
 
 #include <boost/assign.hpp>
 #include <boost/assert.hpp>
@@ -24,7 +25,17 @@
 #include <boost/range/algorithm/fill.hpp>
 #include <boost/range/access.hpp>
 #include <boost/range/algorithm/sort.hpp>
+#include <boost/range/algorithm/max_element.hpp>
 //#include <boost/range/algorithm/rotate.hpp>
+
+namespace br = boost::range;
+namespace bra = br::access;
+
+#include <boost/numeric/interval.hpp>
+#include <boost/numeric/interval/io.hpp>
+#include <boost/numeric/interval/compare/lexicographic.hpp>
+namespace bn = boost::numeric;
+using namespace bn::interval_lib::compare::lexicographic;
 
 #include <boost/accumulators/accumulators.hpp>
 #include <boost/accumulators/statistics/stats.hpp>
@@ -164,7 +175,7 @@ namespace
     }
 
     template<class PointRange>
-    double calculate_cover(cml::vector2d center, const PointRange &points)
+    bn::interval<double> calculate_cover(cml::vector2d center, const PointRange &points)
     {
         /// old code, wrong when > 2 pi
 #if 0
@@ -186,13 +197,142 @@ namespace
 
         BOOST_ASSERT(boost::size(points) > 2);
         
-        return boost::accumulate(
-            boost::irange<int>(1, points.size())
+        auto angle = boost::accumulate(
+            boost::irange<int>(1, boost::size(points))
             | bada::transformed([&](int i){
-                return unsigned_angle_2D(points[i - 1] - center, points[i] - center);
+                return signed_angle_2D(bra::at(points, i - 1) - center, bra::at(points, i) - center);
                 }),
             0.0
             );
+        auto init = signed_angle_2D(cml::vector2d(1, 0), bra::front(points) - center);
+        auto fini = init + angle;
+        if (fini < init) std::swap(init, fini);
+        return bn::interval<double>(init, fini);
+    }
+
+    typedef std::vector<bn::interval<double> > interval_container;
+
+    interval_container merge(interval_container intervals)
+    {
+        interval_container result;
+        if (boost::empty(intervals)) return result;
+
+        boost::sort(intervals, [&](bn::interval<double> lhs, bn::interval<double> rhs){
+            return lower(lhs) < lower(rhs) || lower(lhs) == lower(rhs) && upper(lhs) < upper(rhs);
+            });
+        result.push_back(bra::front(intervals));
+        std::for_each(++boost::begin(intervals), boost::end(intervals), [&](bn::interval<double> i){
+            if (overlap(bra::back(result), i)) {
+                bra::back(result) = hull(bra::back(result), i);
+            } else {
+                result.push_back(i);
+            }
+            });
+
+        return result;
+    }
+
+    interval_container to_std_angle(bn::interval<double> i)
+    {
+        if (width(i) >= 2 * pi) return interval_container(1, bn::interval<double>(0, 2 * pi));
+        auto a = fmod(fmod(lower(i), 2 * pi) + 2 * pi, 2 * pi);
+        auto b = a + width(i);
+        bn::interval<double> r(a, 2 * pi);
+        if (b <= 2 * pi) return interval_container(1, bn::interval<double>(a, b));
+        bn::interval<double> s(0, fmod(b, 2 * pi));
+        if (upper(s) >= a) return interval_container(1, bn::interval<double>(0, 2 * pi));
+        return ba::list_of(s)(r);
+    }
+
+    double covered(const interval_container &intervals)
+    {
+        interval_container ins;
+        for each (auto i in intervals) ba::push_back(ins).range(to_std_angle(i));
+        //qDebug() << "b4merge";
+        //for each (auto i in ins) qDebug() << lower(i) << upper(i);
+        //qDebug() << "b4merge";
+        ins = merge(ins);
+        //qDebug() << "aftmerge";
+        //for each (auto i in ins) qDebug() << lower(i) << upper(i);
+        //qDebug() << "aftmerge";
+        return boost::accumulate(ins | bada::transformed([&](bn::interval<double> i){ return width(i); }), 0.0);
+    }
+
+    template<class PointContainerRange>
+    fit_circle::result_type bag(const PointContainerRange &pcs, double target_cover)
+    {
+        BOOST_ASSERT(!boost::empty(pcs));
+
+        auto front = boost::range::access::front;
+        auto at = boost::range::access::at;
+
+        const int n = boost::size(pcs);
+
+        if (n == 1) return fit_circle::go(front(pcs));
+
+        // mse for all points
+        fit_circle::point_container ps;
+        for each (auto &pc in pcs) ba::push_back(ps).range(pc);
+        auto gret = fit_circle::go(ps);
+
+        std::vector<double> cost(n, 0);
+        // init cost
+        for (int i = 0; i != n; ++i)
+        {
+            fit_circle::point_container ps;
+            for (int j = 0; j != n; ++j)
+            {
+                if (i == j) continue;
+                ba::push_back(ps).range(at(pcs, j));
+                cost[i] = std::max(0.0, gret.mse - fit_circle::go(ps).mse);
+            }
+        }
+
+        std::vector<double> benefit(n, 0);
+        interval_container intervals = pcs |
+            bada::transformed([&](decltype(bra::front(pcs)) ps){ return calculate_cover(gret.center, ps); }) |
+            boost::to_container;
+        auto gcover = covered(intervals);
+        // init benefit
+        for (int i = 0; i != n; ++i)
+        {
+            auto raw = covered(boost::irange<int>(0, n) |
+                bada::filtered([&](int j){ return i != j; }) |
+                bada::transformed([&](int i){ return intervals[i]; }) |
+                boost::to_container
+                );
+            benefit[i] = gcover - raw;
+            BOOST_ASSERT(benefit[i] > -1e-8);
+            //benefit[i] = 1;
+        }
+
+        const double inf = 1e8;
+
+        // init radios
+        std::vector<double> radios(n, 0);
+        for (int i = 0; i != n; ++i)
+        {
+            radios[i] = cost[i] < 1e-8 ? inf : benefit[i] / cost[i];
+        }
+        std::vector<int> indices = boost::irange<int>(0, n) | boost::to_container;
+        boost::sort(indices, [&](int lhs, int rhs){ return radios[lhs] > radios[rhs]; });
+
+        double total_cover = 0;
+        int current_index = 0;
+        while (current_index != n && total_cover < target_cover + 1e-8)
+        {
+            total_cover += benefit[indices[current_index]];
+            ++current_index;
+        }
+
+        {
+            fit_circle::point_container ps;
+            for each (auto i in boost::irange<int>(0, current_index))
+            {
+                ba::push_back(ps).range(at(pcs, indices[i]));
+            }
+            return fit_circle::go(ps);
+        }
     }
 
     struct arc
@@ -201,7 +341,9 @@ namespace
         typedef std::vector<cml::vector2d> polygon;
         polygon points;
         circle guess;
-        double cover;
+        //double cover;
+        //std::vector<bn::interval<double> > intervals;
+        bn::interval<double> interval;
 
         arc() {}
 
@@ -253,10 +395,10 @@ namespace
                 x(a.guess) = ret.center[0];
                 y(a.guess) = ret.center[1];
                 r(a.guess) = ret.radius;
-                a.cover = calculate_cover(ret.center, points);
+                a.interval = calculate_cover(ret.center, points);
 
                 //double scale = 1;
-                //if (length(ret.center - cml::vector2d(1012, 843) * scale) < 40 * scale)
+                //if (length(ret.center - cml::vector2d(55, 50) * scale) < 10 * scale)
                 //{
                 //    qDebug() << "---";
                 //    qDebug() << "points:" << points.size();
@@ -267,7 +409,9 @@ namespace
                 //    qDebug() << "center:" << ret.center[0] << ret.center[1];
                 //    qDebug() << "radius:" << ret.radius;
                 //    qDebug() << "mse" << ret.mse;
-                //    qDebug() << "cover:" << a.cover;
+                //    qDebug() << "cover:" << covered(interval_container(1, a.interval)) / (2 * pi);
+                //    qDebug() << "interval width:" << width(a.interval) / (2 * pi);
+                //    qDebug() << "interval:" << lower(a.interval) << upper(a.interval);
                 //}
             }
             //qDebug() << points.size();
@@ -402,73 +546,6 @@ namespace
         return near(a.guess, b.guess);
     }
 
-    template<class PointContainerRange>
-    fit_circle::result_type bag(const PointContainerRange &pcs, double target_cover)
-    {
-        BOOST_ASSERT(!boost::empty(pcs));
-
-        auto front = boost::range::access::front;
-        auto at = boost::range::access::at;
-
-        const int n = boost::size(pcs);
-
-        if (n == 1) return fit_circle::go(front(pcs));
-
-        // mse for all points
-        fit_circle::point_container ps;
-        for each (auto &pc in pcs) ba::push_back(ps).range(pc);
-        auto gret = fit_circle::go(ps);
-
-        std::vector<double> cost(n, 0);
-        // init cost
-        for (int i = 0; i != n; ++i)
-        {
-            fit_circle::point_container ps;
-            for (int j = 0; j != n; ++j)
-            {
-                if (i == j) continue;
-                ba::push_back(ps).range(at(pcs, j));
-                cost[i] = std::max(0.0, gret.mse - fit_circle::go(ps).mse);
-            }
-        }
-
-        std::vector<double> benefit(n, 0);
-        // init benefit
-        for (int i = 0; i != n; ++i)
-        {
-            //benefit[i] = calculate_cover(gret.center, at(pcs, i));
-            benefit[i] = 1;
-        }
-
-        const double inf = 1e8;
-
-        // init radios
-        std::vector<double> radios(n, 0);
-        for (int i = 0; i != n; ++i)
-        {
-            radios[i] = cost[i] < 1e-8 ? inf : benefit[i] / cost[i];
-        }
-        std::vector<int> indices = boost::irange<int>(0, n) | boost::to_container;
-        boost::sort(indices, [&](int lhs, int rhs){ return radios[lhs] > radios[rhs]; });
-
-        double total_cover = 0;
-        int current_index = 0;
-        while (current_index != n && total_cover < target_cover + 1e-8)
-        {
-            total_cover += benefit[indices[current_index]];
-            ++current_index;
-        }
-
-        {
-            fit_circle::point_container ps;
-            for each (auto i in boost::irange<int>(0, current_index))
-            {
-                ba::push_back(ps).range(at(pcs, indices[i]));
-            }
-            return fit_circle::go(ps);
-        }
-    }
-
     struct circle_with_info
     {
         cvcourse::circle circle;
@@ -476,7 +553,10 @@ namespace
     };
     typedef std::vector<circle_with_info> circle_with_info_container;
 
-    circle_with_info_container combine_arcs(const arc_container &arcs)
+    circle_with_info_container combine_arcs(
+        const arc_container &arcs,
+        boost::optional<double> no_cover_radio
+        )
     {
         typedef circle_with_info_container result_type;
 
@@ -562,22 +642,29 @@ namespace
                         bada::filtered([&](int i){ return mark[i] == kind; }) |
                         boost::to_container;
 
-                    auto cover = boost::accumulate(
-                        indics | bada::transformed([&](int i){ return arcs[i].cover; }),
-                        0.0
-                        ) / (2 * pi);
-                    if (cover >= COVER_THRESHOLD)
+                    //auto cover = boost::accumulate(
+                    //    indics | bada::transformed([&](int i){ return arcs[i].cover; }),
+                    //    0.0
+                    //    ) / (2 * pi);
+                    //qDebug() << "?";
+                    auto cover = covered(indics | bada::transformed([&](int i){ return arcs[i].interval; }) | boost::to_container) / (2 * pi);
+                    //qDebug() << "!";
+                    if (cover >= no_cover_radio.get_value_or(COVER_THRESHOLD))
                     {
                         //// collect points from arcs
                         //std::vector<cml::vector2d> points;
                         //for each (auto i in indics) ba::push_back(points).range(arcs[i].points);
 
+                        //qDebug() << "b4bag" << QVector<int>::fromStdVector(indics);
                         //// calc mse
                         //auto ret = fit_circle::go(points);
-                        auto ret = bag(indics | bada::transformed([&](int i){ return arcs[i].points; }), COVER_THRESHOLD * 2 * pi);
+                        auto ret = bag(indics | bada::transformed([&](int i){ return arcs[i].points; }),
+                            no_cover_radio.get_value_or(COVER_THRESHOLD) * 2 * pi);
+                        //qDebug() << "aftbag" << ret.mse;
 
                         //if (ret.mse <= MSE_THRESHOLD)
-                        if (good_mse(ret.mse, ret.radius))
+                        /// TODO
+                        //if (good_mse(ret.mse, ret.radius))
                         {
                             result_type::value_type elem = { circle(ret.center[0], ret.center[1], ret.radius), ret.mse };
                             result.push_back(elem);
@@ -624,7 +711,10 @@ namespace
     }
 }
 
-cvcourse::circle_container cvcourse::edcircles(const edge_segment_container &es)
+cvcourse::circle_container cvcourse::edcircles(
+    const edge_segment_container &es,
+    const boost::optional<double> no_cover_radio
+    )
 {
     /// calculate arcs
     arc_container arcs;
@@ -633,7 +723,7 @@ cvcourse::circle_container cvcourse::edcircles(const edge_segment_container &es)
         ba::push_back(arcs).range(calculate_arcs(e));
     }
 
-    return select_best_circle(combine_arcs(arcs));
+    return select_best_circle(combine_arcs(arcs, no_cover_radio));
 }
 
 cvcourse::edge_segment cvcourse::contour_to_edge_segment(const contour &c)
@@ -651,4 +741,44 @@ cvcourse::edge_segment cvcourse::contour_to_edge_segment(const contour &c)
     boost::reverse(result);
 
     return result;
+}
+
+#include "algo.hpp"
+
+cvcourse::adaptive_edcircles::adaptive_edcircles(const cv::Mat3b &image, const params &para)
+{
+    auto canvas = image.clone();
+    auto make_es = [&]()->edge_segment_container
+    {
+        return find_contours(thresh(canvas)) |
+            bada::transformed(&contour_to_edge_segment) |
+            bada::filtered([](const edge_segment &e){ return !e.empty(); }) |
+            boost::to_container;
+    };
+
+    scale = 1;
+    {
+        qDebug() << "no cover radio:" << para.no_cover_radio;
+        auto cs = edcircles(make_es(), para.no_cover_radio);
+        if (!cs.empty()) {
+            auto largest = *boost::max_element(cs | bada::transformed([&](circle c){ return c(2); }));
+            scale = IDEAL_RADIUS / largest;
+            qDebug() << "scale:" << scale;
+            cv::resize(canvas, canvas, cv::Size(), scale, scale);
+        } else {
+            qDebug() << "no circle found, no scale";
+        }
+    }
+
+    edge_segments = make_es();
+    circles = edcircles(edge_segments, para.no_cover_radio) |
+        bada::transformed([&](const circle &c){ return c * (1 / scale); }) |
+        boost::to_container;
+    edge_segments = edge_segments |
+        bada::transformed([&](const edge_segment &es)->edge_segment{
+            edge_segment result;
+            for each (auto e in es) result.push_back(e * (1 / scale));
+            return result;
+            }) |
+        boost::to_container;
 }

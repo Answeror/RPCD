@@ -58,7 +58,7 @@ namespace
             cv::Mat3b rgb;
             cv::cvtColor(mat, rgb, CV_BGR2RGB);
             QVector<double> values;
-            for (int y = rgb.size().height - 1; y > -1; --y)
+            for (int y = 0; y < rgb.size().height; ++y)
             {
                 for (int x = 0; x < rgb.size().width; ++x)
                 {
@@ -297,6 +297,7 @@ cvcourse::yacvwidget::yacvwidget(QWidget *parent /*= nullptr*/) :
     // 
     //enableAxis(QwtPlot::xBottom, false);
     //enableAxis(QwtPlot::yLeft, false);
+    //enableAxis(QwtPlot::xTop, true);
 
     axisScaleDraw(QwtPlot::xBottom)->setMinimumExtent(30);
     axisScaleDraw(QwtPlot::yLeft)->setMinimumExtent(50);
@@ -492,8 +493,13 @@ void cvcourse::yacvwidget::show_actual_size()
     self->rescaler->setIntervalHint(QwtPlot::xBottom, QwtInterval(0, ms.width));
     self->rescaler->setIntervalHint(QwtPlot::yLeft, QwtInterval(0, ms.height));
 
-    //replot();
+    setAxisScale(QwtPlot::xBottom, 0, ms.width);
+    setAxisScale(QwtPlot::yLeft, ms.height, 0);
+    updateAxes();
 
+    set_rescale_mode(FITTING);
+
+#if 0
     //this->repaint();
     auto off = size() - canvas()->size();
     auto ims = QSize(ms.width, ms.height);
@@ -510,9 +516,10 @@ void cvcourse::yacvwidget::show_actual_size()
     auto s = canvas()->size();
     s = ims;
     setAxisScale(QwtPlot::xBottom, 0, s.width());
-    setAxisScale(QwtPlot::yLeft, 0, s.height());
+    setAxisScale(QwtPlot::yLeft, s.height(), 0);
     updateAxes();
     replot();
+#endif
     //enableAxis(QwtPlot::xBottom, false);
     //enableAxis(QwtPlot::yLeft, false);
 

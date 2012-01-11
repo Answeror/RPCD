@@ -27,6 +27,19 @@ int main(int argc, char **argv)
     return app.exec();
 }
 
+#ifdef _MSC_VER
+#include <windows.h>
+
+int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance,
+    LPSTR lpCmdLine, int nShowCmd)
+{
+    int argc = 1;
+    char * argv[] = {lpCmdLine};
+    return main(argc, argv);
+}
+#endif // _MSC_VER
+
+
 #endif // __MAIN_CPP_20120106232042__
 
 #else

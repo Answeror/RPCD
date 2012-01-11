@@ -16,6 +16,8 @@
 
 #include <opencv2/opencv.hpp>
 
+#include <boost/optional/optional_fwd.hpp>
+
 namespace cvcourse
 {
     typedef std::vector<cv::Point> edge_segment;
@@ -27,7 +29,24 @@ namespace cvcourse
     typedef cv::Vec3f circle;
     typedef std::vector<circle> circle_container;
 
-    circle_container edcircles(const edge_segment_container &es);
+    circle_container edcircles(
+        const edge_segment_container &es,
+        const boost::optional<double> no_cover_radio
+        );
+
+    struct adaptive_edcircles
+    {
+        struct params
+        {
+            double no_cover_radio;
+        };
+
+        circle_container circles;
+        edge_segment_container edge_segments;
+        double scale;
+
+        adaptive_edcircles(const cv::Mat3b &image, const params &para);
+    };
 }
 
 #endif // __ED_HPP_20120110151135__
