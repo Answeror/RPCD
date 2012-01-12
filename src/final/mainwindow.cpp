@@ -62,6 +62,7 @@ struct cvcourse::mainwindow::impl
 
     window_ptr contour_approximation_window;
     window_ptr edcircles_window;
+    window_ptr overlapped_window;
 };
 
 namespace
@@ -143,10 +144,25 @@ namespace
                         self->edcircles_window = ya;
                     }
                     auto ya = self->edcircles_window.data();
+                    cv::Mat3b result(input.size(), 0);
+                    for each (auto c in ed.circles)
+                    {
+                        cv::circle(result, cv::Point(cvRound(c(0)), cvRound(c(1))), cvRound(c(2)), cv::Scalar(255, 255, 255), 2);
+                    }
+                    ya->plot().set(result);
+                    ya->show();
+                }
+                {
+                    if (!self->overlapped_window.data())
+                    {
+                        auto ya = (self->overlapped_window = new generated_yacvwindow(this)).data();
+                        ya->setWindowTitle(tr("overlapped"));
+                    }
+                    auto ya = self->overlapped_window.data();
                     auto result = input.clone();
                     for each (auto c in ed.circles)
                     {
-                        cv::circle(result, cv::Point(cvRound(c(0)), cvRound(c(1))), cvRound(c(2)), cv::Scalar(0), 2 * c(2) / IDEAL_RADIUS);
+                        cv::circle(result, cv::Point(cvRound(c(0)), cvRound(c(1))), cvRound(c(2)), cv::Scalar(0, 0, 255), 2);
                     }
                     ya->plot().set(result);
                     ya->show();
@@ -790,10 +806,9 @@ void cvcourse::preprocess_page::cleanupPage()
     const preprocess_page_method method;
     auto self = &method(this)->self();
 
-    if (auto ya = self->preprocessed_window.data())
-    {
-        ya->hide();
-    }
+    if (auto ya = self->preprocessed_window.data()) ya->hide();
+    if (auto ya = self->edcircles_window.data()) ya->hide();
+    if (auto ya = self->overlapped_window.data()) ya->hide();
 }
 
 void cvcourse::preprocess_page::iterate()

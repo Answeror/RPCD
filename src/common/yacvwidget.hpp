@@ -44,6 +44,9 @@ namespace cvcourse
     public:
         yacvwidget(QWidget *parent = nullptr);
 
+    Q_SIGNALS:
+        void rescale_mode_changed(int mode);
+
     public Q_SLOTS:
         /// @return true if success
         bool load();

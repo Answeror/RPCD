@@ -72,10 +72,11 @@ cvcourse::yacvwindow::yacvwindow(QWidget *parent) : QMainWindow(parent), self(us
     rescaleBox->insertItem(yacvwidget::FITTING, "fitting");
     rescaleBox->insertItem(yacvwidget::EXPANDING, "expanding");
     connect(rescaleBox, SIGNAL(activated(int)), self->yacv, SLOT(set_rescale_mode(int)));
+    connect(self->yacv, SIGNAL(rescale_mode_changed(int)), rescaleBox, SLOT(setCurrentIndex(int)));
     toolbar->addWidget(new QLabel("rescale mode: ", toolbar));
     toolbar->addWidget(rescaleBox);
 
-    rescaleBox->setCurrentIndex(yacvwidget::EXPANDING);
+    //rescaleBox->setCurrentIndex(yacvwidget::EXPANDING);
 
     //toolbar->setSizePolicy(QSizePolicy::Maximum, QSizePolicy::Maximum);
 

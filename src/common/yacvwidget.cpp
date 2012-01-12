@@ -482,6 +482,8 @@ void cvcourse::yacvwidget::set_rescale_mode(int mode)
     } else {
         replot();
     }
+
+    Q_EMIT rescale_mode_changed(mode);
 }
 
 void cvcourse::yacvwidget::show_actual_size()
