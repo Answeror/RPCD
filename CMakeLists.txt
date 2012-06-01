@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 2.8.5)
 
-project(opencv)
+project(RPCD)
 
 # working directory
 if(NOT WORK_DIR)
