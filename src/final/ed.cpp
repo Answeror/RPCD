@@ -17,7 +17,7 @@
 #include <boost/range/adaptor/sliced.hpp>
 #include <boost/range/adaptor/filtered.hpp>
 #include <boost/range/adaptor/transformed.hpp>
-#include <boost/range/to_container.hpp>
+#include <boost/range/as_container.hpp>
 #include <boost/range/numeric.hpp>
 #include <boost/range/irange.hpp>
 #include <boost/range/algorithm/reverse.hpp>
@@ -291,7 +291,7 @@ namespace
         std::vector<double> benefit(n, 0);
         interval_container intervals = pcs |
             bada::transformed([&](decltype(bra::front(pcs)) ps){ return calculate_cover(gret.center, ps); }) |
-            boost::to_container;
+            boost::as_container;
         auto gcover = covered(intervals);
         // init benefit
         for (int i = 0; i != n; ++i)
@@ -299,7 +299,7 @@ namespace
             auto raw = covered(boost::irange<int>(0, n) |
                 bada::filtered([&](int j){ return i != j; }) |
                 bada::transformed([&](int i){ return intervals[i]; }) |
-                boost::to_container
+                boost::as_container
                 );
             benefit[i] = gcover - raw;
             BOOST_ASSERT(benefit[i] > -1e-8);
@@ -314,7 +314,7 @@ namespace
         {
             radios[i] = cost[i] < 1e-8 ? inf : benefit[i] / cost[i];
         }
-        std::vector<int> indices = boost::irange<int>(0, n) | boost::to_container;
+        std::vector<int> indices = boost::irange<int>(0, n) | boost::as_container;
         boost::sort(indices, [&](int lhs, int rhs){ return radios[lhs] > radios[rhs]; });
 
         double total_cover = 0;
@@ -481,7 +481,7 @@ namespace
                 return arc::make(
                     e | bada::sliced(same_direction_begin, current_turn_index + 2) |
                     bada::transformed(&cmle::convert<cml::vector2d, cv::Point>) |
-                    boost::to_container
+                    boost::as_container
                     );
             };
             auto try_push = [&]
@@ -592,7 +592,7 @@ namespace
                 std::vector<int> indics = 
                     boost::irange<int>(0, arc_count) | 
                     bada::filtered([&](int i){ return mark[i] == kind; }) |
-                    boost::to_container;
+                    boost::as_container;
 
                 auto cover = boost::accumulate(
                     indics | bada::transformed([&](int i){ return arcs[i].cover; }),
@@ -640,14 +640,14 @@ namespace
                     std::vector<int> indics = 
                         boost::irange<int>(0, arc_count) | 
                         bada::filtered([&](int i){ return mark[i] == kind; }) |
-                        boost::to_container;
+                        boost::as_container;
 
                     //auto cover = boost::accumulate(
                     //    indics | bada::transformed([&](int i){ return arcs[i].cover; }),
                     //    0.0
                     //    ) / (2 * pi);
                     //qDebug() << "?";
-                    auto cover = covered(indics | bada::transformed([&](int i){ return arcs[i].interval; }) | boost::to_container) / (2 * pi);
+                    auto cover = covered(indics | bada::transformed([&](int i){ return arcs[i].interval; }) | boost::as_container) / (2 * pi);
                     //qDebug() << "!";
                     if (cover >= no_cover_radio.get_value_or(COVER_THRESHOLD))
                     {
@@ -707,7 +707,7 @@ namespace
             boost::irange<int>(0, n) |
             bada::filtered([&](int i){ return !bad[i]; }) |
             bada::transformed([&](int i){ return cis[i].circle; }) |
-            boost::to_container;
+            boost::as_container;
     }
 }
 
@@ -753,7 +753,7 @@ cvcourse::adaptive_edcircles::adaptive_edcircles(const cv::Mat3b &image, const p
         return find_contours(thresh(canvas)) |
             bada::transformed(&contour_to_edge_segment) |
             bada::filtered([](const edge_segment &e){ return !e.empty(); }) |
-            boost::to_container;
+            boost::as_container;
     };
 
     scale = 1;
@@ -773,12 +773,12 @@ cvcourse::adaptive_edcircles::adaptive_edcircles(const cv::Mat3b &image, const p
     edge_segments = make_es();
     circles = edcircles(edge_segments, para.no_cover_radio) |
         bada::transformed([&](const circle &c){ return c * (1 / scale); }) |
-        boost::to_container;
+        boost::as_container;
     edge_segments = edge_segments |
         bada::transformed([&](const edge_segment &es)->edge_segment{
             edge_segment result;
             for each (auto e in es) result.push_back(e * (1 / scale));
             return result;
             }) |
-        boost::to_container;
+        boost::as_container;
 }

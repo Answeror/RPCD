@@ -24,7 +24,7 @@
 #include <boost/range/adaptor/filtered.hpp>
 #include <boost/range.hpp>
 #include <boost/assign.hpp>
-#include <boost/range/to_container.hpp>
+#include <boost/range/as_container.hpp>
 #include <boost/range/algorithm/max_element.hpp>
 
 #include "mainwindow.hpp"
@@ -271,7 +271,7 @@ namespace
                     edge_segment_container es = contours |
                         bada::transformed(&contour_to_edge_segment) |
                         bada::filtered([](const edge_segment &e){ return !e.empty(); }) |
-                        boost::to_container;
+                        boost::as_container;
 
                     {
                         if (!self->contour_approximation_window.data())
@@ -349,7 +349,7 @@ namespace
                         edge_segment_container es = contours |
                             bada::transformed(&contour_to_edge_segment) |
                             bada::filtered([](const edge_segment &e){ return !e.empty(); }) |
-                            boost::to_container;
+                            boost::as_container;
                         return es;
                     };
 

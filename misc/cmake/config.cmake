@@ -1,17 +1,7 @@
-#file(TO_CMAKE_PATH $ENV{CODE} CODE_HOME)
-#if(NOT CODE_HOME)
-#    message(FATAL_ERROR "Please define CODE enviounment variable first.")
-#endif()
-#set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} ${CODE_HOME}/cmake)
-
-#include(qt_support)
-#include(set_output_dir)
-#include(disable_msvc_warnings)
-#include(create_vcproj_userfile)
-#include(list_subdirectories)
-#include(3rd)
-
-list(APPEND CMAKE_MODULE_PATH ${CMAKE_SOURCE_DIR}/misc/3rd/cmake)
+list(APPEND CMAKE_MODULE_PATH ${CMAKE_SOURCE_DIR}/misc/3rd/acmake)
+list(APPEND CMAKE_FRAMEWORK_PATH ${CMAKE_SOURCE_DIR}/misc/3rd/cml-1_0_3)
+list(APPEND CMAKE_FRAMEWORK_PATH ${CMAKE_SOURCE_DIR}/misc/3rd/ans)
+list(APPEND CMAKE_FRAMEWORK_PATH ${CMAKE_SOURCE_DIR}/misc/3rd/oventoboost)
 
 include(ans.common)
 include(3rd)

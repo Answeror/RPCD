@@ -1,3 +1,0 @@
-file(GLOB FILES *.cpp *.hpp)
-add_executable_ex(homework.2 "${FILES}")
-target_link_libraries(homework.2 common)
